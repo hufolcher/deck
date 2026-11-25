@@ -191,6 +191,18 @@ impl Config {
 
     /// The command that opens `url`: the configured opener as is, else the
     /// system's, through the Slack or Linear desktop app when asked.
+    /// Opens the link with `open_command`, detached from this terminal.
+    pub fn open(&self, url: &str) -> std::io::Result<()> {
+        let command = self.open_command(url);
+        std::process::Command::new(&command[0])
+            .args(&command[1..])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map(drop)
+    }
+
     pub fn open_command(&self, url: &str) -> Vec<String> {
         let opener = self.opener();
         let mut command: Vec<String> = opener.split_whitespace().map(String::from).collect();

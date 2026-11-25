@@ -350,6 +350,21 @@ pub fn draw_menu(frame: &mut Frame, app: &mut App) {
         return;
     };
     let labels: Vec<String> = menu.choices.iter().map(|choice| choice.label()).collect();
+    let title = Line::from(vec![
+        " ".into(),
+        menu.key.clone().fg(ACCENT).bold(),
+        " ".into(),
+    ]);
+    app.hits.menu = draw_choices(frame, title, &labels, menu.selected);
+}
+
+/// A dialog of numbered choices; returns each row's area and index, for clicks.
+pub fn draw_choices(
+    frame: &mut Frame,
+    title: Line<'static>,
+    labels: &[String],
+    selected: usize,
+) -> Vec<(Rect, usize)> {
     let width = labels
         .iter()
         .map(|label| label.chars().count() as u16 + 8)
@@ -357,15 +372,9 @@ pub fn draw_menu(frame: &mut Frame, app: &mut App) {
         .unwrap_or(30)
         .max(44);
     let area = centered(frame, width, labels.len() as u16 + 4);
-    let block = panel(
-        Line::from(vec![
-            " ".into(),
-            menu.key.clone().fg(ACCENT).bold(),
-            " ".into(),
-        ]),
-        true,
-    )
-    .title_bottom(Line::from(" ↑↓ ⏎ or 1-9 · esc closes ".fg(MUTED)).alignment(Alignment::Right));
+    let block = panel(title, true).title_bottom(
+        Line::from(" ↑↓ ⏎ or 1-9 · esc closes ".fg(MUTED)).alignment(Alignment::Right),
+    );
     let inner = block.inner(area);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
@@ -384,7 +393,7 @@ pub fn draw_menu(frame: &mut Frame, app: &mut App) {
         ));
         let text = format!(" {}  {label}", index + 1);
         let padded = format!("{text:<w$}", w = inner.width as usize);
-        lines.push(if index == menu.selected {
+        lines.push(if index == selected {
             Line::from(Span::styled(
                 padded,
                 Style::new().fg(Color::Black).bg(ACCENT).bold(),
@@ -397,7 +406,7 @@ pub fn draw_menu(frame: &mut Frame, app: &mut App) {
         });
     }
     frame.render_widget(Paragraph::new(lines), inner);
-    app.hits.menu = hits;
+    hits
 }
 
 #[cfg(test)]

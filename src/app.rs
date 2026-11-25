@@ -763,14 +763,7 @@ impl App {
             self.notify("no link on this item", true);
             return;
         };
-        let command = self.config.open_command(&link.url);
-        let spawned = std::process::Command::new(&command[0])
-            .args(&command[1..])
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn();
-        match spawned {
+        match self.config.open(&link.url) {
             Ok(_) => self.notify(format!("opened {}", link.label), false),
             Err(error) => self.notify(format!("cannot open {}: {error}", link.url), true),
         }
