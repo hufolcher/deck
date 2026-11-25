@@ -263,7 +263,13 @@ pub fn changes<S: Shell>(shell: &S, cwd: &Path) -> Result<Changes, String> {
             .args(args.iter().copied())
             .cwd(cwd.into())
     };
-    let status = run(shell, git(&["status", "--porcelain=v1", "--branch"]))?;
+    let status = run(shell, git(&["status", "--porcelain=v1", "--branch"])).map_err(|error| {
+        if error.contains("not a git repository") {
+            "not a git repository".to_string()
+        } else {
+            error
+        }
+    })?;
     // No HEAD yet in a new repo: the counts stay empty.
     let numstat = run(shell, git(&["diff", "--numstat", "HEAD"])).unwrap_or_default();
     Ok(Changes::parse(&status, &numstat))
@@ -389,6 +395,18 @@ mod tests {
         );
         assert!(prs[1].draft && prs[1].conflicts);
         assert_eq!(prs[1].review, Review::None);
+    }
+
+    #[test]
+    fn outside_a_repo_says_so_plainly() {
+        let shell = Fake::default().fail(
+            "git status",
+            "fatal: not a git repository (or any of the parent directories): .git",
+        );
+        assert_eq!(
+            changes(&shell, Path::new("/tmp")),
+            Err("not a git repository".into())
+        );
     }
 
     #[test]
