@@ -6,6 +6,8 @@ Terminal apps around Claude Code.
   team's. A Claude Code skill keeps the todo fresh; the app itself checks each
   item against Linear, Slack, GitHub and your Claude sessions, and starts
   Claude on an item from its dialog.
+- `deck claude [claude args…]`: Claude Code itself, with panels beside it
+  (below).
 - `deck mcp`: an MCP server, so Claude manages that todo.
 
 Everything below is about `deck todo` unless it says otherwise.
@@ -50,6 +52,26 @@ Everything below is about `deck todo` unless it says otherwise.
 - Every run uses your Claude Code login: `ANTHROPIC_API_KEY` and
   `ANTHROPIC_AUTH_TOKEN` are removed from the child's environment, so a key in
   your shell never turns a run into API billing.
+
+## deck claude
+
+Runs `claude` with your arguments in a pane deck draws, and keeps a column of
+panels beside it (from `side_min_width` columns, 120 by default):
+
+- **Session**: the conversation as Claude Code registers it
+  (`~/.claude/sessions/<pid>.json`): working or idle, its name, since when.
+- **Changes**: the branch, ahead/behind, each changed file with its `+/−`.
+- **Pull requests**: yours that are open (`gh pr list --author @me`), the
+  current branch's first (`▶`), each with what it waits for: failing or
+  running checks, the review, conflicts, draft. A click opens it.
+- **Watch**: any command's output every few seconds, e.g. what a test rig runs
+  (`[claude.watch]`).
+
+Every key goes to Claude except `ctrl+]` (`[claude] menu_key`), which opens
+deck's dialog: fork the conversation (copies `claude --resume <id>
+--fork-session`), open or copy a pull request's link, hide or show the panels,
+send `ctrl+]` itself to Claude, quit. The wheel scrolls Claude's output. deck
+ends with Claude, with its exit code.
 
 ## Install
 
@@ -124,6 +146,8 @@ it on change.
 | `links` | | URL bases to rebuild links from ids (tracker, Slack, mail, team inbox) |
 | `keys` | | rebound actions |
 | `[endpoints]` | the public APIs | `linear`, `slack`, `github` base URLs: GitHub Enterprise (`https://host/api/v3`), a proxy, an emulator |
+| `[claude]` `menu_key`, `side_min_width` | `ctrl+]`, 120 | `deck claude`'s dialog key; narrower terminals start with the panels hidden |
+| `[claude.watch]` `title`, `command`, `every_seconds` | `Watch`, none, 10 | a command whose output gets a panel, run with `sh -c` in Claude's folder; none: no panel |
 
 ## Tests
 
@@ -135,7 +159,7 @@ npm ci --prefix tests && tests/e2e.sh   # the binary in tmux, driven by keys and
 The e2e run starts [emulate](https://github.com/vercel-labs/emulate) for Slack,
 Linear and GitHub. It fills them through their own APIs (a ticket, a thread, a
 pull request) and points `[endpoints]` at them, so real curl does the talking.
-What no emulator covers (`claude`, the keychain, the clipboard, notifications)
+What no emulator covers (`claude`, its interactive chat included, `gh pr list`, the keychain, the clipboard, notifications)
 is `tests/emulator/emulate.py` on the PATH, over a world file. The test drives
 the real binary with tmux `send-keys`, SGR mouse sequences and window resizes,
 changes both worlds while it runs, then reads the screen. No account and no
