@@ -3,6 +3,7 @@
 
 mod day;
 mod popup;
+pub use popup::draw_choices;
 pub mod status;
 mod todo;
 

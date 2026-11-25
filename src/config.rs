@@ -123,6 +123,49 @@ pub struct Config {
     pub endpoints: crate::connectors::Endpoints,
     /// Rebound actions, e.g. `work = ["w", "ctrl+w"]`; the others keep their defaults.
     pub keys: BTreeMap<Action, Vec<Chord>>,
+    /// `deck claude`, the Claude Code wrapper.
+    pub claude: ClaudeApp,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct ClaudeApp {
+    /// Opens deck's dialog over Claude; every other key goes to Claude.
+    pub menu_key: Chord,
+    /// A command whose output gets its own panel, e.g. what a test rig runs.
+    pub watch: Watch,
+    /// Narrower terminals start with the side panels hidden.
+    pub side_min_width: u16,
+}
+
+impl Default for ClaudeApp {
+    fn default() -> Self {
+        ClaudeApp {
+            menu_key: Chord::ctrl(']'),
+            watch: Watch::default(),
+            side_min_width: 120,
+        }
+    }
+}
+
+/// Empty command: no panel.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct Watch {
+    pub title: String,
+    /// Run with `sh -c` in Claude's folder.
+    pub command: String,
+    pub every_seconds: u32,
+}
+
+impl Default for Watch {
+    fn default() -> Self {
+        Watch {
+            title: "Watch".into(),
+            command: String::new(),
+            every_seconds: 10,
+        }
+    }
 }
 
 impl Default for Config {
@@ -151,6 +194,7 @@ impl Default for Config {
             links: LinkBases::default(),
             endpoints: crate::connectors::Endpoints::default(),
             keys: BTreeMap::new(),
+            claude: ClaudeApp::default(),
         }
     }
 }

@@ -119,6 +119,15 @@ const NAMED: [(&str, KeyCode, &str); 14] = [
 ];
 
 impl Chord {
+    pub fn ctrl(ch: char) -> Chord {
+        Chord::normal(KeyCode::Char(ch), KeyModifiers::CONTROL)
+    }
+
+    /// The key press this chord stands for.
+    pub fn event(self) -> KeyEvent {
+        KeyEvent::new(self.code, self.modifiers)
+    }
+
     /// Shift is part of the character (`G`) or of the key (`backtab`), never kept apart.
     fn normal(code: KeyCode, modifiers: KeyModifiers) -> Chord {
         let modifiers = match code {

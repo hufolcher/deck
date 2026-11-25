@@ -118,6 +118,17 @@ impl Handoff {
         }
     }
 
+    /// A new conversation that starts from this one; the original goes on.
+    pub fn fork(claude: &str, session_id: &str, cwd: &Path) -> Handoff {
+        Handoff {
+            line: format!(
+                "cd {} && {claude} --resume {session_id} --fork-session",
+                cwd.display()
+            ),
+            live_in: None,
+        }
+    }
+
     /// Copies the line; returns what happened, for the status line.
     pub fn copy<S: Shell>(&self, shell: &S) -> Result<String, Error> {
         let copy = if cfg!(target_os = "macos") {

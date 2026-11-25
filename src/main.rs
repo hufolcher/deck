@@ -1,5 +1,6 @@
 //! deck: terminal apps around Claude Code. `deck todo` is the daily todo and the
-//! team's day in one pane; `deck mcp` lets Claude manage that todo.
+//! team's day in one pane; `deck claude` wraps Claude Code with panels;
+//! `deck mcp` lets Claude manage the todo.
 //!
 //! Claude Code does the reading (Linear, Slack, Gmail, calendars) through the
 //! daily-todo skill on your subscription; this app schedules it, draws what it
@@ -7,6 +8,7 @@
 
 mod agenda;
 mod app;
+mod claude;
 mod config;
 mod connectors;
 mod jobs;
@@ -29,6 +31,7 @@ use std::time::Duration;
 fn main() -> std::io::Result<()> {
     match std::env::args().nth(1).as_deref() {
         Some("todo") => {}
+        Some("claude") => std::process::exit(claude::run(std::env::args().skip(2).collect())?),
         Some("mcp") => return mcp::serve(),
         Some("--version") => {
             println!("deck {}", env!("CARGO_PKG_VERSION"));
@@ -36,7 +39,7 @@ fn main() -> std::io::Result<()> {
         }
         _ => {
             println!(
-                "deck todo     the daily todo and the team's day in this terminal\ndeck mcp      MCP server on stdio, for Claude\n\n? in an app lists its keys."
+                "deck todo     the daily todo and the team's day in this terminal\ndeck claude   Claude Code with panels: session, changed files, pull requests\ndeck mcp      MCP server on stdio, for Claude\n\n? in deck todo lists its keys; ctrl+] in deck claude opens its dialog."
             );
             return Ok(());
         }
