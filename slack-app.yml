@@ -1,0 +1,20 @@
+# Slack app for todo-tui's Slack connector: read-only, a user token.
+# api.slack.com/apps → Create New App → From a manifest → paste this → Install
+# to your workspace, then store the "User OAuth Token" (xoxp-…):
+#   macOS:  security add-generic-password -a "$USER" -s todo-tui-slack -w
+#   Linux:  secret-tool store --label=todo-tui-slack service todo-tui-slack
+display_information:
+  name: todo-tui
+  description: Reads who answered the threads on your todo. Never posts.
+oauth_config:
+  scopes:
+    user:
+      - channels:history
+      - groups:history
+      - im:history
+      - mpim:history
+      - users:read
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

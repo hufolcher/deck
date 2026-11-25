@@ -1,0 +1,8 @@
+{
+  "name": "deck-e2e",
+  "private": true,
+  "description": "Third-party API emulators the e2e run talks to: Slack, Linear, GitHub.",
+  "devDependencies": {
+    "emulate": "0.14.0"
+  }
+}

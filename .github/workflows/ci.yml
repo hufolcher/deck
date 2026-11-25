@@ -1,0 +1,39 @@
+name: ci
+# Unit tests, lint, then the real binary driven in tmux against emulated Slack,
+# Linear and GitHub (vercel-labs/emulate) and tests/emulator: no account, no
+# network beyond crates.io and npm.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: npm ci --prefix tests
+      - name: tmux
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get install -y -q tmux; else brew install tmux; fi
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo build
+      - run: tests/e2e.sh
