@@ -29,7 +29,7 @@ export EMULATOR_WORLD="$WORK/world.json"
 export EMULATOR_LOG="$WORK/calls.jsonl"
 mkdir -p "$HOME/.config/deck" "$WORK/bin"
 : > "$EMULATOR_LOG"
-for program in claude security secret-tool pbcopy wl-copy xclip osascript notify-send; do
+for program in claude gh security secret-tool pbcopy wl-copy xclip osascript notify-send; do
   ln -s "$ROOT/tests/emulator/emulate.py" "$WORK/bin/$program"
 done
 export PATH="$WORK/bin:$PATH"
@@ -409,6 +409,63 @@ stop
 rm -f "$HOME/.cache/daily-todo/last.json"
 start -e EMULATOR_FAIL=refresh "$BIN todo; sleep 60"
 check "failed refresh is reported" wait_for "todo refresh failed: fake refresh failure" 10
+
+# 17. deck claude: Claude in a pane, deck's panels beside it, its dialog over it.
+key q
+stop
+REPO="$WORK/repo"
+git init -q -b feature "$REPO"
+echo one > "$REPO/a.txt"
+git -C "$REPO" add a.txt
+git -C "$REPO" -c user.name=e2e -c user.email=e2e@example.test commit -qm one
+echo two >> "$REPO/a.txt"
+echo new > "$REPO/new.md"
+config '
+[claude.watch]
+title = "Rig"
+command = "printf '"'"'\\033[32mrig 1 free\\033[0m'"'"'"
+every_seconds = 2'
+: > "$OPENED"
+start "cd $REPO && $BIN claude; echo deck exited with \$?; sleep 60"
+check "claude runs in deck's pane" wait_for "emulated claude ready in repo" 10
+keys -l "hello there"
+key Enter
+check "keys reach claude" wait_for "claude heard: hello there"
+check "the session as claude registered it" wait_for "e2e chat" 5
+check "changed files with their branch" wait_for "⎇ feature" 5
+check "a changed file with its counts" wait_for "a.txt"
+check "an untracked file" wait_for "new.md"
+check "the branch's pull request first" wait_for "▶ #5 Feature: export" 5
+check "what it waits for" wait_for "1 failing  review required"
+check "the other one, a draft in conflict" wait_for "conflicts  draft"
+check "the watched command, without its colours" wait_for "rig 1 free" 5
+key C-]
+check "the menu key opens deck's dialog" wait_for "Fork this conversation"
+key Enter
+check "fork copies the command with the session id" clipboard_has "--resume e2e5e551-0000-4000-8000-000000000001 --fork-session"
+check "the dialog closed" gone "Fork this conversation" 3
+key C-]
+check "the dialog offers the pull request" click "Open #5 in the browser"
+check "the pull request opened" bash -c "sleep 0.3; grep -qx 'https://example.test/acme/api/pull/5' '$OPENED'"
+check "a click on the other one opens it" click "#3 Older idea"
+check "the second opened" bash -c "sleep 0.3; grep -qx 'https://example.test/acme/api/pull/3' '$OPENED'"
+key C-]
+check "panels can be hidden" click "Hide the side panels"
+check "panels gone" gone "Pull requests" 3
+key C-]
+check "and shown again" click "Show the side panels"
+check "panels back" wait_for "Pull requests" 3
+key C-]
+check "quit from the dialog" click "Quit: Claude stops too"
+check "deck and claude stopped" wait_for "deck exited with" 5
+
+# 18. Claude ending ends deck claude.
+stop
+start "cd $REPO && $BIN claude; echo deck exited with \$?; sleep 60"
+check "claude starts again" wait_for "emulated claude ready in repo" 10
+keys -l "/exit"
+key Enter
+check "claude's exit ends deck with its code" wait_for "deck exited with 0" 5
 
 echo
 if [ "$failures" -gt 0 ]; then

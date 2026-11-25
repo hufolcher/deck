@@ -119,6 +119,16 @@ def claude_world(now, key, slack_ask, pull, tokens):
     world = {
         "tokens": tokens,
         "claude": {"sessions": [], "next_id": "0d802d74"},
+        # `gh pr list --author @me`, for deck claude's panel.
+        "gh": {"prs": [
+            {"number": 5, "title": "Feature: export", "url": "https://example.test/acme/api/pull/5",
+             "headRefName": "feature", "isDraft": False, "reviewDecision": "REVIEW_REQUIRED",
+             "mergeStateStatus": "CLEAN", "statusCheckRollup": [
+                 {"__typename": "CheckRun", "status": "COMPLETED", "conclusion": "FAILURE"},
+                 {"__typename": "CheckRun", "status": "COMPLETED", "conclusion": "SUCCESS"}]},
+            {"number": 3, "title": "Older idea", "url": "https://example.test/acme/api/pull/3",
+             "headRefName": "idea", "isDraft": True, "reviewDecision": None,
+             "mergeStateStatus": "DIRTY", "statusCheckRollup": []}]},
         "agenda": {"people": [
             {"name": "Me", "email": "me@example.test", "events": [
                 {"start": "09:00", "end": "09:15", "title": "Standup", "location": "Meet"},

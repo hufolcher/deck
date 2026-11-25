@@ -3,10 +3,11 @@
 world file, for the e2e test. Slack, Linear and GitHub are vercel-labs/emulate
 servers instead (tests/emulator/world.py fills them).
 
-Linked under the names the app runs (claude, security, secret-tool, pbcopy,
-wl-copy, xclip, osascript, notify-send), it answers like the real one:
-claude the headless jobs, `agents --json --all`, `--bg`, `attach` and
-`mcp get|add`; the keychain the world's tokens.
+Linked under the names the app runs (claude, gh, security, secret-tool,
+pbcopy, wl-copy, xclip, osascript, notify-send), it answers like the real one:
+claude the headless jobs, `agents --json --all`, `--bg`, `attach`,
+`mcp get|add` and, on a terminal, a chat that echoes each line (`/exit` ends
+it); gh `pr list`; the keychain the world's tokens.
 
   EMULATOR_WORLD  the world (JSON): tokens, claude, agenda, snapshot, clipboard, notifications
   EMULATOR_LOG    one JSON line per call: program, args, stdin, api_key
@@ -110,7 +111,33 @@ def claude(args):
         return
     if "-p" in args:
         return job(args[args.index("-p") + 1])
+    if sys.stdin.isatty():
+        return chat(args)
     fail("claude emulator: unknown call " + " ".join(args))
+
+
+def chat(args):
+    """Interactive claude: registers itself like Claude Code does, echoes lines."""
+    session = args[args.index("--resume") + 1] if "--resume" in args else "e2e5e551-0000-4000-8000-000000000001"
+    path = os.path.expanduser(f"~/.claude/sessions/{os.getpid()}.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump({"pid": os.getpid(), "sessionId": session, "cwd": os.getcwd(), "status": "idle",
+                   "name": "e2e chat", "startedAt": int(time.time() * 1000), "kind": "interactive"}, f)
+    print(f"emulated claude ready in {os.path.basename(os.getcwd())}", flush=True)
+    try:
+        for line in sys.stdin:
+            if line.strip() == "/exit":
+                return
+            print(f"claude heard: {line.strip()}", flush=True)
+    finally:
+        os.remove(path)
+
+
+def gh(args):
+    if args[:2] == ["pr", "list"]:
+        return out(load().get("gh", {}).get("prs", []))
+    fail("gh emulator: unknown call " + " ".join(args))
 
 
 def job(prompt):
@@ -160,6 +187,8 @@ def main():
                             "api_key": bool(os.environ.get("ANTHROPIC_API_KEY"))}) + "\n")
     if program == "claude":
         claude(args)
+    elif program == "gh":
+        gh(args)
     elif program in ("security", "secret-tool"):
         keychain(args)
     elif program in ("pbcopy", "wl-copy", "xclip"):
