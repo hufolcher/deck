@@ -168,7 +168,13 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     let mut right: Vec<Span> = Vec::new();
-    for kind in [Kind::Refresh, Kind::Agenda, Kind::Draft, Kind::Create] {
+    for kind in [
+        Kind::Refresh,
+        Kind::Agenda,
+        Kind::Draft,
+        Kind::Create,
+        Kind::Check,
+    ] {
         if let Some((since, _)) = app.running.get(&kind) {
             let seconds = since.elapsed().as_secs();
             right.push(

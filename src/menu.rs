@@ -17,6 +17,8 @@ pub enum Choice {
     TakeOver { state: String },
     /// Draft a Linear ticket for an item without one.
     Ticket,
+    /// Claude reads the item's sources again and sets it done or open.
+    Check,
     /// Close an item handled where the todo cannot see it (a mail, a call).
     Done,
     /// Open again an item closed by mistake.
@@ -35,6 +37,7 @@ impl Choice {
                 format!("Copy the command to open Claude's session · {state}")
             }
             Choice::Ticket => "Draft a Linear ticket for it".into(),
+            Choice::Check => "Check its status with Claude · reads its threads again".into(),
             Choice::Done => "Mark it done · handled elsewhere".into(),
             Choice::Reopen { done } => format!("Reopen it · now {done}"),
         }
@@ -68,6 +71,7 @@ impl Menu {
         if !item.has_ticket() {
             choices.push(Choice::Ticket);
         }
+        choices.push(Choice::Check);
         choices.push(match item.done_text() {
             Some(done) => Choice::Reopen { done },
             None => Choice::Done,
@@ -116,6 +120,7 @@ mod tests {
                 },
                 Choice::Work,
                 Choice::Ticket,
+                Choice::Check,
                 Choice::Done
             ]
         );

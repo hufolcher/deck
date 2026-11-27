@@ -21,6 +21,7 @@ pub enum Kind {
     Agenda,
     Draft,
     Create,
+    Check,
 }
 
 impl Kind {
@@ -30,6 +31,7 @@ impl Kind {
             Kind::Agenda => "agenda",
             Kind::Draft => "draft",
             Kind::Create => "ticket",
+            Kind::Check => "check",
         }
     }
 }
@@ -292,6 +294,71 @@ pub fn create(config: &Config, draft: &Draft, tx: Sender<Message>) {
         })),
     };
     spawn(Kind::Create, call, config, tx);
+}
+
+/// Claude's verdict on one item, from its sources as they are now.
+#[derive(Deserialize, Clone, Debug, PartialEq)]
+pub struct Verdict {
+    pub done: bool,
+    /// What closed it, or what still waits.
+    pub why: String,
+}
+
+pub fn check(config: &Config, item: &Item, tx: Sender<Message>) {
+    let links: Vec<Value> = item
+        .all_links()
+        .iter()
+        .map(|link| json!({ "title": link.label, "url": link.url }))
+        .collect();
+    let source = json!({
+        "key": item.key,
+        "line": item.line,
+        "asks": item.asks,
+        "links": links,
+        "status": item.status,
+        "done": item.done_text(),
+    });
+    let user = config
+        .people
+        .first()
+        .map(|person| format!(" The user is {}.", person.name))
+        .unwrap_or_default();
+    let call = Call {
+        prompt: format!(
+            "Check whether this item of the user's todo is done.{user}\n\n{}\n\n\
+             Read each of its sources as it is now (Gmail get_thread, Slack read_thread, Linear get_issue \
+             and list_comments, `gh pr view`). It is done when every ask in it was answered by the user \
+             after it was asked (a later message from the user in the thread), its ticket moved to done, \
+             deployed, canceled or in review, its pull request merged or its review comments answered, \
+             or its alert resolved. Partly answered or unchanged: not done. Never call it done because it \
+             stopped surfacing or because `done` says so: check.\n\
+             - done: true or false.\n\
+             - why: at most ~6 words. Done: what closed it, as the todo prints it after an arrow, e.g. \
+               \"answered Ann (mail)\", \"Deployed\", \"merged\". Not done: what still waits, e.g. \
+               \"no reply to Ann yet\".",
+            serde_json::to_string_pretty(&source).unwrap_or_default()
+        ),
+        system: format!("{HEADLESS} You can only read. Create or change nothing."),
+        model: config.small_model.clone(),
+        permission: "dontAsk",
+        tools: [
+            "mcp__claude_ai_Gmail__get_thread",
+            "mcp__claude_ai_Gmail__search_threads",
+            "mcp__plugin_slack_slack__slack_read_thread",
+            "mcp__plugin_slack_slack__slack_read_channel",
+            "mcp__linear__get_issue",
+            "mcp__linear__list_comments",
+            "Bash(gh pr view:*)",
+        ]
+        .map(String::from)
+        .to_vec(),
+        schema: Some(json!({
+            "type": "object",
+            "properties": { "done": { "type": "boolean" }, "why": { "type": "string" } },
+            "required": ["done", "why"]
+        })),
+    };
+    spawn(Kind::Check, call, config, tx);
 }
 
 fn spawn(kind: Kind, call: Call, config: &Config, tx: Sender<Message>) {

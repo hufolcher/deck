@@ -6,7 +6,7 @@ use crate::config::{Config, Depth, cache_dir, home};
 use crate::connectors::claude::{Claude, Handoff, Session, Started};
 use crate::connectors::shell::System;
 use crate::connectors::{self, Statuses};
-use crate::jobs::{self, Draft, Kind, Message};
+use crate::jobs::{self, Draft, Kind, Message, Verdict};
 use crate::keymap::{self, Action, Keymap};
 use crate::menu::{self, Choice, Menu};
 use crate::schedule::{Job, Schedule};
@@ -157,6 +157,8 @@ pub struct App {
     pub edit_requested: bool,
     /// Key to select on the next snapshot reload, when an item changes key.
     follow: Option<String>,
+    /// The item Claude is checking.
+    checking: Option<String>,
     tx: Sender<Message>,
     rx: Receiver<Message>,
 }
@@ -206,6 +208,7 @@ impl App {
             quit: false,
             edit_requested: false,
             follow: None,
+            checking: None,
             tx,
             rx,
         };
@@ -670,6 +673,18 @@ impl App {
                     },
                 });
             }
+            Kind::Check => {
+                let Some(key) = self.checking.take() else {
+                    return;
+                };
+                let verdict = outcome
+                    .output
+                    .and_then(|output| serde_json::from_value::<Verdict>(output).ok());
+                match verdict {
+                    Some(verdict) if outcome.ok => self.apply_verdict(&key, verdict),
+                    _ => self.notify(format!("{key} not checked: {}", outcome.error), true),
+                }
+            }
             Kind::Create => {
                 let Some(Ticket::Creating { key, draft }) = self.ticket.take() else {
                     return;
@@ -923,9 +938,41 @@ impl App {
             Choice::Work => self.start_work(),
             Choice::TakeOver { .. } => self.take_over(),
             Choice::Ticket => self.start_ticket(),
+            Choice::Check => self.start_check(),
             Choice::Done => self.set_done(&menu.key, Some(menu::DONE_BY_HAND)),
             Choice::Reopen { .. } => self.set_done(&menu.key, None),
         }
+    }
+
+    fn start_check(&mut self) {
+        let Some(item) = self.item().cloned() else {
+            return;
+        };
+        if let Some(key) = &self.checking {
+            self.notify(format!("Claude is already checking {key}"), true);
+            return;
+        }
+        self.checking = Some(item.key.clone());
+        self.running.insert(Kind::Check, (Instant::now(), 0));
+        self.notify(format!("Claude checks {}…", item.key), false);
+        jobs::check(&self.config, &item, self.tx.clone());
+    }
+
+    /// Claude's verdict wins either way: a check is asked for to be sure.
+    fn apply_verdict(&mut self, key: &str, verdict: Verdict) {
+        if verdict.done {
+            self.set_done(key, Some(&verdict.why));
+            return;
+        }
+        let was_done = self
+            .snapshot
+            .items
+            .iter()
+            .any(|item| item.key == key && item.done_text().is_some());
+        if was_done {
+            self.set_done(key, None);
+        }
+        self.notify(format!("{key} still open: {}", verdict.why), false);
     }
 
     /// Done with the user's own word for it, or open again with None.
@@ -1071,7 +1118,7 @@ impl App {
     /// Stops the jobs still running, except a ticket creation: cutting it
     /// could leave a ticket created but not linked, so it is left to finish.
     pub fn shutdown(&mut self) {
-        for kind in [Kind::Refresh, Kind::Agenda, Kind::Draft] {
+        for kind in [Kind::Refresh, Kind::Agenda, Kind::Draft, Kind::Check] {
             self.kill(kind);
         }
     }
