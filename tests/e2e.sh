@@ -322,6 +322,21 @@ check "click on reopen" click "Reopen it"
 check "the row is open again" gone "→ marked done" 5
 check "the snapshot too" bash -c "! grep -q 'marked done' '$HOME/.cache/daily-todo/last.json'"
 
+# Or Claude reads its sources again, read-only, and its verdict sets it.
+key Enter
+check "click on check" click "Check its status with Claude"
+check "done with what closed it" wait_for "→ answered Ann (mail)" 10
+check "by a read-only job on the item" called '(?s)^claude -p Check whether this item.*ACME-9999.*--permission-mode dontAsk'
+world "w['check'] = {'done': False, 'why': 'no reply to Ann yet'}"
+key Enter
+check "check again" click "Check its status with Claude"
+check "still open, and why" wait_for "ACME-9999 still open: no reply to Ann yet" 10
+check "the row is open again" gone "→ answered Ann (mail)" 5
+world "w['check'] = {'done': False, 'why': 'Ann asked again'}"
+key Enter
+check "check an open item" click "Check its status with Claude"
+check "it stays open, with why" wait_for "ACME-9999 still open: Ann asked again" 10
+
 # 12. Settings: a change is saved to the config file.
 key s
 check "settings open" wait_for "Refresh every"

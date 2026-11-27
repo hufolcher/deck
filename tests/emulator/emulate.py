@@ -11,7 +11,7 @@ it); gh `pr list`; the keychain the world's tokens.
 
   EMULATOR_WORLD  the world (JSON): tokens, claude, agenda, snapshot, clipboard, notifications
   EMULATOR_LOG    one JSON line per call: program, args, stdin, api_key
-  EMULATOR_FAIL   a claude job (refresh|agenda|draft|create) that fails
+  EMULATOR_FAIL   a claude job (refresh|agenda|draft|create|check) that fails
 
 The test edits the world while the app runs: a session starts waiting on you,
 a token goes away.
@@ -144,7 +144,8 @@ def job(prompt):
     kind = ("refresh" if prompt.startswith("/daily-todo") else
             "agenda" if "calendar events" in prompt else
             "draft" if "Draft one" in prompt else
-            "create" if "Create it with one save_issue" in prompt else "unknown")
+            "create" if "Create it with one save_issue" in prompt else
+            "check" if "Check whether this item" in prompt else "unknown")
     time.sleep(float(os.environ.get("EMULATOR_DELAY", "0")))
     if os.environ.get("EMULATOR_FAIL") == kind:
         out({"is_error": True, "result": f"fake {kind} failure"})
@@ -171,6 +172,9 @@ def job(prompt):
     if kind == "create":
         return out({"is_error": False, "result": "", "structured_output": {
             "identifier": "ACME-9999", "url": "https://linear.app/acme/issue/ACME-9999/fake"}})
+    if kind == "check":
+        verdict = load().get("check", {"done": True, "why": "answered Ann (mail)"})
+        return out({"is_error": False, "result": "", "structured_output": verdict})
     out({"is_error": True, "result": "claude emulator: unknown job"})
     sys.exit(1)
 
