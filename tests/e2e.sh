@@ -310,14 +310,26 @@ check "create got the drafted title" grep -q 'Supplier: reply about the export' 
 check "item now carries the ticket" bash -c "grep -q '\"key\": \"ACME-9999\"' '$HOME/.cache/daily-todo/last.json'"
 check "selection follows the new key" wait_for "╭ ACME-9999"
 
-# 11. Settings: a change is saved to the config file.
+# 11. Handled where the todo cannot see it: the dialog marks it done, and
+# opens it again.
+key Enter
+check "click on mark done" click "Mark it done"
+check "the row says done by hand" wait_for "→ marked done" 5
+check "the snapshot keeps it" bash -c "grep -q '\"text\": \"marked done\"' '$HOME/.cache/daily-todo/last.json'"
+key Enter
+check "the dialog offers to reopen" wait_for "Reopen it · now marked done" 5
+check "click on reopen" click "Reopen it"
+check "the row is open again" gone "→ marked done" 5
+check "the snapshot too" bash -c "! grep -q 'marked done' '$HOME/.cache/daily-todo/last.json'"
+
+# 12. Settings: a change is saved to the config file.
 key s
 check "settings open" wait_for "Refresh every"
 key Right
 key Escape
 check "refresh interval saved" grep -q '^refresh_minutes = 60' "$HOME/.config/deck/config.toml"
 
-# 12. Claude manages the todo through the MCP server, while the app is open.
+# 13. Claude manages the todo through the MCP server, while the app is open.
 mcp() {
   python3 -I - "$BIN" "$@" <<'PY'
 import json, subprocess, sys
@@ -361,7 +373,7 @@ key k
 key g
 check "selection on the first item" wait_for "╭ ACME-1" 5
 
-# 13. The terminal shrinks and grows (a font zoom): the layout follows.
+# 14. The terminal shrinks and grows (a font zoom): the layout follows.
 $T resize-window -t e2e:0 -x 80 -y 40
 check "narrow: the day panel gives way" gone "Day · Me" 5
 check "narrow: the list stays" wait_for "Acme: answer the feed question"
@@ -373,7 +385,7 @@ check "wide again: the day panel is back" wait_for "Day · Me" 5
 keys -l $'\e[<65;10;8M'
 check "wheel scrolls the list" wait_for "╭ mail-item" 5
 
-# 14. Rebound keys, Slack not connected, outside tmux (same behaviour).
+# 15. Rebound keys, Slack not connected, outside tmux (same behaviour).
 key q
 stop
 config '
@@ -392,7 +404,7 @@ check "outside tmux, work from the dialog" click "Let Claude work on it"
 check "badge for the new session" wait_for "Claude working" 15
 check "work copied the attach command" clipboard_has "&& claude attach 0d802d75"
 
-# 15. No calendar tools: no agenda job, the todo still fills.
+# 16. No calendar tools: no agenda job, the todo still fills.
 key q
 stop
 CALENDAR_TOOLS='[]'
@@ -403,14 +415,14 @@ check "no calendar tools: the todo still fills" wait_for "Acme: answer the feed 
 key r
 check "no calendar tools: no agenda job" bash -c "sleep 1; ! grep -q 'calendar events' '$EMULATOR_LOG'"
 
-# 16. A failing job says so and leaves the list alone.
+# 17. A failing job says so and leaves the list alone.
 key q
 stop
 rm -f "$HOME/.cache/daily-todo/last.json"
 start -e EMULATOR_FAIL=refresh "$BIN todo; sleep 60"
 check "failed refresh is reported" wait_for "todo refresh failed: fake refresh failure" 10
 
-# 17. deck claude: Claude in a pane, deck's panels beside it, its dialog over it.
+# 18. deck claude: Claude in a pane, deck's panels beside it, its dialog over it.
 key q
 stop
 REPO="$WORK/repo"
@@ -459,7 +471,7 @@ key C-]
 check "quit from the dialog" click "Quit: Claude stops too"
 check "deck and claude stopped" wait_for "deck exited with" 5
 
-# 18. Claude ending ends deck claude.
+# 19. Claude ending ends deck claude.
 stop
 start "cd $REPO && $BIN claude; echo deck exited with \$?; sleep 60"
 check "claude starts again" wait_for "emulated claude ready in repo" 10
