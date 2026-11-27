@@ -42,8 +42,10 @@ Everything below is about `deck todo` unless it says otherwise.
   `✓ Done`, `↩ Name` someone wrote since the item was added.
 - **Work on an item.** ⏎ opens the item's actions: its links, "Let Claude
   work on it", "Copy the command to open Claude's session", "Draft a Linear
-  ticket", and "Mark it done" for what you handled where the todo cannot see it
-  (a mail, a call), or "Reopen it". The next refresh keeps it done. Work starts `claude --bg` headless, with the item in the prompt; the
+  ticket", "Check its status with Claude" (a read-only job reads its threads,
+  ticket and pull request again and sets it done or open), and "Mark it done"
+  for what you handled where the todo cannot see it (a call), or "Reopen it".
+  The next refresh keeps it done. Work starts `claude --bg` headless, with the item in the prompt; the
   session stops before anything outward and says what waits on you, and you get
   a desktop notification (`ping`) when it does. The command that opens the
   session goes to the clipboard: deck never opens a window or pane itself.
