@@ -8,7 +8,7 @@ use crate::connectors::shell::System;
 use crate::connectors::{self, Statuses};
 use crate::jobs::{self, Draft, Kind, Message};
 use crate::keymap::{self, Action, Keymap};
-use crate::menu::{Choice, Menu};
+use crate::menu::{self, Choice, Menu};
 use crate::schedule::{Job, Schedule};
 use crate::snapshot::{self, Item, Snapshot};
 use chrono::{DateTime, Datelike, Duration, Local, Timelike, Weekday};
@@ -923,6 +923,21 @@ impl App {
             Choice::Work => self.start_work(),
             Choice::TakeOver { .. } => self.take_over(),
             Choice::Ticket => self.start_ticket(),
+            Choice::Done => self.set_done(&menu.key, Some(menu::DONE_BY_HAND)),
+            Choice::Reopen { .. } => self.set_done(&menu.key, None),
+        }
+    }
+
+    /// Done with the user's own word for it, or open again with None.
+    fn set_done(&mut self, key: &str, done: Option<&str>) {
+        match snapshot::set_done(key, done) {
+            Ok(()) => {
+                self.follow = Some(key.to_string());
+                self.reload_files();
+                let text = if done.is_some() { "done" } else { "open again" };
+                self.notify(format!("{key} {text}"), false);
+            }
+            Err(error) => self.notify(format!("not saved: {error}"), true),
         }
     }
 

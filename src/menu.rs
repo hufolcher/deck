@@ -1,4 +1,5 @@
-//! The item's actions in one dialog, what ⏎ opens: each link, Claude, a ticket.
+//! The item's actions in one dialog, what ⏎ opens: each link, Claude, a ticket,
+//! done or open again.
 //! Arrows and ⏎, or the number, or a click; esc closes.
 
 use crate::connectors::claude::Session;
@@ -16,7 +17,14 @@ pub enum Choice {
     TakeOver { state: String },
     /// Draft a Linear ticket for an item without one.
     Ticket,
+    /// Close an item handled where the todo cannot see it (a mail, a call).
+    Done,
+    /// Open again an item closed by mistake.
+    Reopen { done: String },
 }
+
+/// What a done item shows after its →, when the user closed it.
+pub const DONE_BY_HAND: &str = "marked done";
 
 impl Choice {
     pub fn label(&self) -> String {
@@ -27,6 +35,8 @@ impl Choice {
                 format!("Copy the command to open Claude's session · {state}")
             }
             Choice::Ticket => "Draft a Linear ticket for it".into(),
+            Choice::Done => "Mark it done · handled elsewhere".into(),
+            Choice::Reopen { done } => format!("Reopen it · now {done}"),
         }
     }
 }
@@ -58,6 +68,10 @@ impl Menu {
         if !item.has_ticket() {
             choices.push(Choice::Ticket);
         }
+        choices.push(match item.done_text() {
+            Some(done) => Choice::Reopen { done },
+            None => Choice::Done,
+        });
         Menu {
             key: item.key.clone(),
             choices,
@@ -101,7 +115,8 @@ mod tests {
                     label: "Mail".into()
                 },
                 Choice::Work,
-                Choice::Ticket
+                Choice::Ticket,
+                Choice::Done
             ]
         );
         let session = Session {
@@ -119,9 +134,9 @@ mod tests {
             json!({}),
         );
         let menu = Menu::for_item(&ticketed, Some(&session), Local::now());
-        assert!(
-            matches!(menu.choices.last(), Some(Choice::TakeOver { state }) if state.contains("needs you"))
-        );
+        assert!(menu.choices.iter().any(
+            |choice| matches!(choice, Choice::TakeOver { state } if state.contains("needs you"))
+        ));
         assert!(!menu.choices.contains(&Choice::Ticket), "it has a ticket");
     }
 
@@ -130,8 +145,24 @@ mod tests {
         let mut menu = Menu::for_item(&item(json!([]), json!({})), None, Local::now());
         assert_eq!(menu.chosen(), Some(&Choice::Work));
         menu.step(-1);
-        assert_eq!(menu.chosen(), Some(&Choice::Ticket));
+        assert_eq!(menu.chosen(), Some(&Choice::Done));
         menu.step(1);
         assert_eq!(menu.selected, 0);
+    }
+
+    #[test]
+    fn a_done_item_offers_to_reopen() {
+        let done: Item = serde_json::from_value(
+            json!({ "key": "k", "line": "l", "done": { "text": "answered Ann (mail)" } }),
+        )
+        .unwrap();
+        let menu = Menu::for_item(&done, None, Local::now());
+        assert_eq!(
+            menu.choices.last(),
+            Some(&Choice::Reopen {
+                done: "answered Ann (mail)".into()
+            })
+        );
+        assert!(!menu.choices.contains(&Choice::Done));
     }
 }
